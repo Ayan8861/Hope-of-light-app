@@ -4,7 +4,7 @@ const SITE = {
   phone: '',                       // add a public phone number here to show it in the footer/contact page
   address: '202/A, Deccan Gymkhana, Pune, Maharashtra 411004',
   hours: 'Mon – Fri: 9:00 AM – 5:00 PM',
-  social: { facebook: 'https://www.facebook.com/share/1A1jSQwSMH/', instagram: 'https://www.instagram.com/ayanbagnikar/?utm_source=ig_web_button_share_sheet', twitter: 'https://x.com/ayanbagnikar', linkedin: 'https://www.linkedin.com/in/ayan-bagnikar-b49931370?utm_source=share_via&utm_content=profile&utm_medium=member_android' }  // paste profile URLs to show icons
+  social: { facebook: '', instagram: '', twitter: '', linkedin: '' }  // paste profile URLs to show icons
 };
 
 const P = {
@@ -102,7 +102,7 @@ function renderFooter() {
         <p style="margin-top:1rem">Empowering communities through education, healthcare and sustainable development — creating lasting change, one life at a time.</p>
         ${soc ? `<div class="social">${soc}</div>` : ''}</div>
       <div><h4>Explore</h4><ul><li><a href="/about.html">About us</a></li><li><a href="/projects.html">Our projects</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
-      <div><h4>Get involved</h4><ul><li><a href="#" data-donate>Donate</a></li><li><a href="/register.html">Become a volunteer</a></li><li><a href="/login.html">Member login</a></li></ul></div>
+      <div><h4>Get involved</h4><ul><li><a href="#" data-donate>Donate</a></li><li><a href="/register.html">Become a volunteer</a></li><li><a href="/login.html">Member login</a></li><li id="installLi" hidden><a href="#" id="installBtn">Install the app</a></li></ul></div>
       <div><h4>Reach us</h4><ul><li>${esc(SITE.address)}</li><li><a href="mailto:${SITE.email}">${SITE.email}</a></li>${SITE.phone ? `<li>${esc(SITE.phone)}</li>` : ''}</ul></div>
     </div>
     <div class="fbottom"><span>© ${new Date().getFullYear()} Hope of Light. All rights reserved.</span><span>Made with care in Pune, India</span></div></div></footer>`;
@@ -209,9 +209,29 @@ function countUp(el, to, money) {
   try { ME = (await api('/auth/me')).user; } catch { ME = null; }
   if (document.body.dataset.guard === 'user' && !ME) { location.href = '/login.html'; return; }
   if (document.body.dataset.guard === 'admin' && (!ME || ME.role !== 'admin')) { location.href = ME ? '/account.html' : '/login.html'; return; }
-  renderHeader(); renderFooter();
+  renderHeader(); renderFooter(); setupInstall();
   $$('[data-icon]').forEach(el => { el.outerHTML = icon(el.dataset.icon, el.className); });
   document.addEventListener('click', e => { const d = e.target.closest('[data-donate]'); if (d) { e.preventDefault(); openDonate(d.dataset.project); } });
   reveal();
   document.dispatchEvent(new CustomEvent('hol:ready'));
 })();
+
+/* ---------- Installable app (PWA) ---------- */
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; showInstall(); });
+window.addEventListener('appinstalled', () => { deferredInstall = null; const li = $('#installLi'); if (li) li.hidden = true; toast('App installed. Look for it on your home screen!'); });
+
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+function showInstall() { const li = $('#installLi'); if (li && !isStandalone()) li.hidden = false; }
+function setupInstall() {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  const btn = $('#installBtn'); if (!btn) return;
+  if (isIOS()) showInstall();
+  else if (deferredInstall) showInstall();
+  btn.onclick = async e => {
+    e.preventDefault();
+    if (deferredInstall) { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; $('#installLi').hidden = true; }
+    else if (isIOS()) toast('Tap the Share button, then "Add to Home Screen".');
+  };
+}

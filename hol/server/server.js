@@ -47,7 +47,11 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
 
 // Frontend (plain HTML/CSS/JS) served from ../public
-app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'], maxAge: '1h' }));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  extensions: ['html'], maxAge: '1h',
+  dotfiles: 'allow',                                   // lets /.well-known/assetlinks.json (Android app link) be served
+  setHeaders: (res, file) => { if (/sw\.js$|manifest\.webmanifest$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); }
+}));
 app.use((_req, res) => res.status(404).sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 
 // eslint-disable-next-line no-unused-vars
